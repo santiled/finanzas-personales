@@ -8,6 +8,7 @@ import {
   Wallet, TrendingUp, TrendingDown, PiggyBank, Trash2, PlusCircle, DollarSign, Moon, Sun, History, Calendar
 } from 'lucide-react';
 import { supabase } from '../supabaseClient';
+// Forzar reconstrucción en Vercel para leer variables de entorno
 
 // --- TIPOS Y CONSTANTES ---
 
