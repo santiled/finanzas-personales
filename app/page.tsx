@@ -288,19 +288,20 @@ export default function FinancialDashboard() {
   const fetchTransactions = async () => {
     setLoading(true);
     setError(null);
-    const { data, error } = await supabase
-      .from('transactions')
-      .select('*')
-      .order('date', { ascending: false });
-    
-    if (error) {
-      console.error('Error cargando transacciones:', error);
-      setError(error.message || "Error de conexión con Supabase. Revisa las variables de entorno.");
-    } else if (data) {
-      setTransactions(data);
+    try {
+      const { data, error } = await supabase
+        .from('transactions')
+        .select('*')
+        .order('date', { ascending: false });
+      
+      if (error) throw error;
+      if (data) setTransactions(data);
+    } catch (err: any) {
+      console.error('Error cargando transacciones:', err);
+      setError(err.message || "Error crítico de conexión. Verifica las variables en Vercel.");
+    } finally {
+      setLoading(false);
     }
-    
-    setLoading(false);
   };
 
   const addTransaction = async (t: Omit<Transaction, 'id'>) => {
@@ -404,7 +405,6 @@ export default function FinancialDashboard() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-        {loading && <p className="text-center text-slate-500">Cargando datos financieros...</p>}
         
         {/* DEBUG: Estado de Variables de Entorno */}
         <div className={`text-center text-xs p-2 rounded border ${supabaseUrlUsed.includes('tu-proyecto') ? 'bg-yellow-100 border-yellow-200 text-yellow-800' : 'bg-green-100 border-green-200 text-green-800'}`}>
@@ -419,6 +419,8 @@ export default function FinancialDashboard() {
             <span className="block sm:inline">{error}</span>
           </div>
         )}
+
+        {loading && <p className="text-center text-slate-500">Cargando datos financieros...</p>}
 
         {/* Month Filter */}
         <div className="flex items-center justify-end gap-4">
