@@ -5,10 +5,12 @@ import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer 
 } from 'recharts';
 import { 
-  Wallet, TrendingUp, TrendingDown, PiggyBank, Trash2, PlusCircle, DollarSign, Moon, Sun, History, Calendar, LogOut, Lock, Mail, User
+  Wallet, TrendingUp, TrendingDown, PiggyBank, Trash2, PlusCircle, DollarSign, Moon, Sun, History, Calendar, LogOut, Lock, Mail, User, Download
 } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import { Session } from '@supabase/supabase-js';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 // --- TIPOS Y CONSTANTES ---
 
@@ -540,6 +542,46 @@ export default function FinancialDashboard() {
     }
   };
 
+  const handleDownloadPDF = () => {
+    const doc = new jsPDF();
+
+    // Título y Encabezado
+    doc.setFontSize(18);
+    doc.text('Reporte Financiero Mensual', 14, 22);
+    
+    doc.setFontSize(11);
+    doc.setTextColor(100);
+    doc.text(`Generado el: ${new Date().toLocaleDateString()}`, 14, 30);
+    doc.text(`Periodo: ${currentMonth}`, 14, 36);
+
+    // Resumen de Métricas
+    doc.setTextColor(0);
+    doc.setFontSize(12);
+    doc.text(`Ingresos Totales: ${formatCurrency(metrics.income)}`, 14, 50);
+    doc.text(`Gastos Totales: ${formatCurrency(metrics.expense)}`, 14, 58);
+    doc.text(`Ahorros Totales: ${formatCurrency(metrics.savings)}`, 14, 66);
+    doc.text(`Balance Neto: ${formatCurrency(metrics.netBalance)}`, 14, 74);
+
+    // Tabla de Transacciones
+    const tableData = filteredTransactions.map(t => [
+      t.date,
+      t.description,
+      t.category,
+      t.type.toUpperCase(),
+      formatCurrency(t.amount)
+    ]);
+
+    autoTable(doc, {
+      startY: 85,
+      head: [['Fecha', 'Descripción', 'Categoría', 'Tipo', 'Monto']],
+      body: tableData,
+      headStyles: { fillColor: [37, 99, 235] }, // Azul similar al de la app
+      styles: { fontSize: 10 },
+    });
+
+    doc.save(`reporte-finanzas-${currentMonth}.pdf`);
+  };
+
   const handleLogout = async () => {
     await supabase.auth.signOut();
     setTransactions([]);
@@ -643,17 +685,26 @@ export default function FinancialDashboard() {
 
         {loading && <p className="text-center text-slate-500">Cargando datos financieros...</p>}
 
-        {/* Month Filter */}
-        <div className="flex items-center justify-end gap-4">
-          <label className="text-sm font-medium text-slate-600 dark:text-slate-400 flex items-center gap-2">
-            <Calendar size={16} /> Filtrar por mes:
-          </label>
-          <input 
-            type="month" 
-            value={currentMonth}
-            onChange={(e) => setCurrentMonth(e.target.value)}
-            className="p-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm focus:ring-2 focus:ring-blue-500 outline-none"
-          />
+        {/* Actions Bar: Filter & Download */}
+        <div className="flex flex-col sm:flex-row items-center justify-end gap-4">
+          <button
+            onClick={handleDownloadPDF}
+            className="flex items-center gap-2 px-4 py-2 bg-slate-900 dark:bg-slate-700 text-white rounded-lg text-sm font-medium hover:bg-slate-800 transition-colors shadow-sm w-full sm:w-auto justify-center"
+          >
+            <Download size={16} /> Descargar Reporte
+          </button>
+
+          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+            <label className="text-sm font-medium text-slate-600 dark:text-slate-400 flex items-center gap-2">
+              <Calendar size={16} /> Filtrar:
+            </label>
+            <input 
+              type="month" 
+              value={currentMonth}
+              onChange={(e) => setCurrentMonth(e.target.value)}
+              className="p-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm focus:ring-2 focus:ring-blue-500 outline-none"
+            />
+          </div>
         </div>
         
         {/* Dashboard Cards */}
@@ -675,7 +726,6 @@ export default function FinancialDashboard() {
             amount={metrics.savings} 
             icon={PiggyBank} 
             colorClass="bg-blue-500"
-            subtext={metrics.savings >= 500000 ? "Meta mensual alcanzada 🎉" : `Faltan ${formatCurrency(500000 - metrics.savings)} para meta`}
           />
           <Card 
             title="Balance Neto" 
