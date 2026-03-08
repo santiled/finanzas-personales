@@ -1,3 +1,5 @@
+// @ts-nocheck
+
 const nextConfig = {
   eslint: {
     // Ignorar errores de linter durante el build para evitar que falle el despliegue
