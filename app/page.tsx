@@ -5,7 +5,7 @@ import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer 
 } from 'recharts';
 import { 
-  Wallet, TrendingUp, TrendingDown, PiggyBank, Trash2, PlusCircle, DollarSign, Moon, Sun, History, Calendar, LogOut, Lock, Mail, User, Download, Star, X, Menu, CreditCard, LayoutDashboard, ChevronLeft, ChevronRight, Bell
+  Wallet, TrendingUp, TrendingDown, PiggyBank, Trash2, PlusCircle, DollarSign, Moon, Sun, History, Calendar, LogOut, Lock, Mail, User, Download, Star, X, Menu, CreditCard, LayoutDashboard, ChevronLeft, ChevronRight, Bell, BellOff
 } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import { Session } from '@supabase/supabase-js';
@@ -42,6 +42,7 @@ interface Credit {
   cutoff_day: number;
   payment_day: number;
   user_id: string;
+  alerts_enabled?: boolean;
 }
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
@@ -442,7 +443,8 @@ const CreditForm = ({ onAdd }: { onAdd: (c: Omit<Credit, 'id' | 'user_id'>) => v
     total_months: '',
     start_date: new Date().toISOString().split('T')[0],
     cutoff_day: '',
-    payment_day: ''
+    payment_day: '',
+    alerts_enabled: true
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -456,12 +458,13 @@ const CreditForm = ({ onAdd }: { onAdd: (c: Omit<Credit, 'id' | 'user_id'>) => v
       total_months: Number(formData.total_months),
       start_date: formData.start_date,
       cutoff_day: Number(formData.cutoff_day),
-      payment_day: Number(formData.payment_day)
+      payment_day: Number(formData.payment_day),
+      alerts_enabled: formData.alerts_enabled
     });
 
     setFormData({
       description: '', bank: '', monthly_amount: '', total_months: '', 
-      start_date: new Date().toISOString().split('T')[0], cutoff_day: '', payment_day: ''
+      start_date: new Date().toISOString().split('T')[0], cutoff_day: '', payment_day: '', alerts_enabled: true
     });
   };
 
@@ -478,6 +481,10 @@ const CreditForm = ({ onAdd }: { onAdd: (c: Omit<Credit, 'id' | 'user_id'>) => v
         <input type="date" placeholder="Fecha Inicio" className="p-2 rounded border border-slate-300 dark:border-slate-600 bg-transparent dark:text-white" value={formData.start_date} onChange={e => setFormData({...formData, start_date: e.target.value})} required />
         <input type="number" placeholder="Día de Corte (1-31)" min="1" max="31" className="p-2 rounded border border-slate-300 dark:border-slate-600 bg-transparent dark:text-white" value={formData.cutoff_day} onChange={e => setFormData({...formData, cutoff_day: e.target.value})} required />
         <input type="number" placeholder="Día de Pago (1-31)" min="1" max="31" className="p-2 rounded border border-slate-300 dark:border-slate-600 bg-transparent dark:text-white" value={formData.payment_day} onChange={e => setFormData({...formData, payment_day: e.target.value})} required />
+        <div className="flex items-center gap-2 md:col-span-2 lg:col-span-4 p-2 bg-blue-50 dark:bg-blue-900/20 rounded border border-blue-100 dark:border-blue-800">
+          <input type="checkbox" id="alerts" checked={formData.alerts_enabled} onChange={e => setFormData({...formData, alerts_enabled: e.target.checked})} className="w-4 h-4 text-blue-600 rounded" />
+          <label htmlFor="alerts" className="text-sm text-slate-700 dark:text-slate-300 cursor-pointer">Activar alertas por correo (3 días antes)</label>
+        </div>
         <button type="submit" className="bg-blue-600 text-white p-2 rounded hover:bg-blue-700 transition-colors">Agregar Crédito</button>
       </div>
     </form>
@@ -514,6 +521,14 @@ const CreditsView = ({ session, currentMonth }: { session: Session, currentMonth
     if (!confirm('¿Eliminar crédito?')) return;
     await supabase.from('credits').delete().eq('id', id);
     setCredits(prev => prev.filter(c => c.id !== id));
+  };
+
+  const toggleAlerts = async (id: string, currentStatus: boolean) => {
+    const newStatus = !currentStatus;
+    const { error } = await supabase.from('credits').update({ alerts_enabled: newStatus }).eq('id', id);
+    if (!error) {
+      setCredits(prev => prev.map(c => c.id === id ? { ...c, alerts_enabled: newStatus } : c));
+    }
   };
 
   const testReminders = async () => {
@@ -624,7 +639,16 @@ const CreditsView = ({ session, currentMonth }: { session: Session, currentMonth
                         </div>
                       </td>
                       <td className="p-4 text-center">
-                        <button onClick={() => deleteCredit(c.id)} className="text-slate-400 hover:text-red-500"><Trash2 size={18} /></button>
+                        <div className="flex items-center justify-center gap-2">
+                          <button 
+                            onClick={() => toggleAlerts(c.id, c.alerts_enabled ?? true)} 
+                            className={`p-2 rounded-full transition-colors ${c.alerts_enabled !== false ? 'text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20' : 'text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'}`}
+                            title={c.alerts_enabled !== false ? "Desactivar alertas" : "Activar alertas"}
+                          >
+                            {c.alerts_enabled !== false ? <Bell size={18} /> : <BellOff size={18} />}
+                          </button>
+                          <button onClick={() => deleteCredit(c.id)} className="text-slate-400 hover:text-red-500 p-2 rounded-full hover:bg-red-50 dark:hover:bg-red-900/20"><Trash2 size={18} /></button>
+                        </div>
                       </td>
                     </tr>
                   ))}

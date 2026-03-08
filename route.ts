@@ -28,7 +28,8 @@ export async function GET() {
     const { data: credits, error: creditsError } = await supabaseAdmin
       .from('credits')
       .select('*')
-      .eq('payment_day', targetDay);
+      .eq('payment_day', targetDay)
+      .eq('alerts_enabled', true);
 
     if (creditsError) throw creditsError;
     
