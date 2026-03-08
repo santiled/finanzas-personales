@@ -5,7 +5,7 @@ import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer 
 } from 'recharts';
 import { 
-  Wallet, TrendingUp, TrendingDown, PiggyBank, Trash2, PlusCircle, DollarSign, Moon, Sun, History, Calendar, LogOut, Lock, Mail
+  Wallet, TrendingUp, TrendingDown, PiggyBank, Trash2, PlusCircle, DollarSign, Moon, Sun, History, Calendar, LogOut, Lock, Mail, User
 } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import { Session } from '@supabase/supabase-js';
@@ -48,6 +48,8 @@ const formatCurrency = (value: number) => {
 const AuthForm = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [gender, setGender] = useState('Masculino');
   const [loading, setLoading] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
   const [message, setMessage] = useState<{text: string, type: 'error' | 'success'} | null>(null);
@@ -59,13 +61,41 @@ const AuthForm = () => {
 
     try {
       if (isSignUp) {
-        const { error } = await supabase.auth.signUp({ email, password });
+        const { error } = await supabase.auth.signUp({ 
+          email, 
+          password,
+          options: {
+            data: {
+              full_name: fullName,
+              gender: gender,
+            }
+          }
+        });
         if (error) throw error;
         setMessage({ text: '¡Registro exitoso! Revisa tu correo para confirmar.', type: 'success' });
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
       }
+    } catch (error: any) {
+      setMessage({ text: error.message, type: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResetPassword = async () => {
+    if (!email) {
+      setMessage({ text: 'Por favor ingresa tu correo arriba para recuperar la contraseña.', type: 'error' });
+      return;
+    }
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: typeof window !== 'undefined' ? window.location.origin : undefined,
+      });
+      if (error) throw error;
+      setMessage({ text: 'Se ha enviado un correo para restablecer tu contraseña.', type: 'success' });
     } catch (error: any) {
       setMessage({ text: error.message, type: 'error' });
     } finally {
@@ -96,6 +126,37 @@ const AuthForm = () => {
         )}
 
         <form onSubmit={handleAuth} className="space-y-4">
+          {isSignUp && (
+            <>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Nombre Completo</label>
+                <div className="relative">
+                  <User className="absolute left-3 top-3 text-slate-400" size={18} />
+                  <input 
+                    type="text" 
+                    required
+                    className="w-full pl-10 p-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-transparent dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                    placeholder="Tu nombre"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Género</label>
+                <select 
+                  className="w-full p-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-transparent dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                  value={gender}
+                  onChange={(e) => setGender(e.target.value)}
+                >
+                  <option value="Masculino">Masculino</option>
+                  <option value="Femenino">Femenino</option>
+                  <option value="Otro">Otro</option>
+                </select>
+              </div>
+            </>
+          )}
+
           <div>
             <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Correo Electrónico</label>
             <div className="relative">
@@ -125,6 +186,14 @@ const AuthForm = () => {
             </div>
           </div>
 
+          {!isSignUp && (
+            <div className="flex justify-end">
+              <button type="button" onClick={handleResetPassword} className="text-xs text-blue-600 hover:underline">
+                ¿Olvidaste tu contraseña?
+              </button>
+            </div>
+          )}
+
           <button 
             type="submit" 
             disabled={loading}
@@ -140,12 +209,9 @@ const AuthForm = () => {
             <div className="relative flex justify-center text-sm"><span className="px-2 bg-white dark:bg-slate-800 text-slate-500">O continuar con</span></div>
           </div>
 
-          <div className="mt-6 grid grid-cols-2 gap-3">
+          <div className="mt-6 grid grid-cols-1 gap-3">
             <button onClick={() => handleSocialLogin('google')} className="flex items-center justify-center px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
               <span className="font-medium text-slate-700 dark:text-slate-200">Google</span>
-            </button>
-            <button onClick={() => handleSocialLogin('azure')} className="flex items-center justify-center px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
-              <span className="font-medium text-slate-700 dark:text-slate-200">Microsoft</span>
             </button>
           </div>
         </div>
@@ -399,6 +465,11 @@ export default function FinancialDashboard() {
   const [currentMonth, setCurrentMonth] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
   const [templateData, setTemplateData] = useState<Partial<Transaction> | null>(null);
 
+  // Obtener datos del usuario para el saludo
+  const userMetaData = session?.user?.user_metadata;
+  const greeting = userMetaData?.gender === 'Femenino' ? 'Bienvenida' : 'Bienvenido';
+  const displayName = userMetaData?.full_name?.split(' ')[0] || session?.user?.email?.split('@')[0] || 'Usuario';
+
   // Gestión de Sesión
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -543,7 +614,10 @@ export default function FinancialDashboard() {
             <div className="bg-blue-600 p-2 rounded-lg">
               <Wallet className="text-white" size={20} />
             </div>
-            <h1 className="text-xl font-bold tracking-tight">Finanzas Personales</h1>
+            <div>
+              <h1 className="text-xl font-bold tracking-tight">{greeting} {displayName}</h1>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Finanzas Personales</p>
+            </div>
           </div>
           <div className="flex items-center gap-4">
             <div className="text-sm text-slate-500 hidden sm:block">{session.user.email}</div>
