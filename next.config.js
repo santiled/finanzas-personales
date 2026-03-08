@@ -1,5 +1,4 @@
-// @ts-nocheck
-
+/** @type {import('next').NextConfig} */
 const nextConfig = {
   eslint: {
     // Ignorar errores de linter durante el build para evitar que falle el despliegue
@@ -11,4 +10,4 @@ const nextConfig = {
   },
 };
 
-export default nextConfig;
+module.exports = nextConfig;
