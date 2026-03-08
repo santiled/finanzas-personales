@@ -7,7 +7,7 @@ import {
 import { 
   Wallet, TrendingUp, TrendingDown, PiggyBank, Trash2, PlusCircle, DollarSign, Moon, Sun, History, Calendar
 } from 'lucide-react';
-import { supabase } from '../supabaseClient';
+import { supabase, supabaseUrlUsed } from '../supabaseClient';
 
 // --- TIPOS Y CONSTANTES ---
 
@@ -405,6 +405,14 @@ export default function FinancialDashboard() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
         {loading && <p className="text-center text-slate-500">Cargando datos financieros...</p>}
+        
+        {/* DEBUG: Estado de Variables de Entorno */}
+        <div className={`text-center text-xs p-2 rounded border ${supabaseUrlUsed.includes('tu-proyecto') ? 'bg-yellow-100 border-yellow-200 text-yellow-800' : 'bg-green-100 border-green-200 text-green-800'}`}>
+            <strong>Diagnóstico Vercel:</strong> {supabaseUrlUsed.includes('tu-proyecto') 
+                ? '⚠️ FALTAN VARIABLES DE ENTORNO (Usando URL dummy)' 
+                : '✅ VARIABLES DETECTADAS (Usando Supabase Real)'}
+        </div>
+
         {error && (
           <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
             <strong className="font-bold">Error detectado: </strong>

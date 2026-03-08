@@ -12,4 +12,5 @@ if (!supabaseUrl || !supabaseAnonKey) {
   console.warn("⚠️ ADVERTENCIA CRÍTICA: No se detectaron las variables de entorno de Supabase. La conexión a la base de datos fallará.");
 }
 
+export const supabaseUrlUsed = url;
 export const supabase = createClient(url, key);
