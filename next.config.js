@@ -10,4 +10,6 @@ const nextConfig = {
   },
 };
 
+console.log("✅ next.config.js cargado correctamente");
+
 module.exports = nextConfig;
