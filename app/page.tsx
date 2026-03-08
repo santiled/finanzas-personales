@@ -5,9 +5,10 @@ import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer 
 } from 'recharts';
 import { 
-  Wallet, TrendingUp, TrendingDown, PiggyBank, Trash2, PlusCircle, DollarSign, Moon, Sun, History, Calendar
+  Wallet, TrendingUp, TrendingDown, PiggyBank, Trash2, PlusCircle, DollarSign, Moon, Sun, History, Calendar, LogOut, Lock, Mail
 } from 'lucide-react';
-import { supabase, supabaseUrlUsed } from '../supabaseClient';
+import { supabase } from '../supabaseClient';
+import { Session } from '@supabase/supabase-js';
 
 // --- TIPOS Y CONSTANTES ---
 
@@ -26,6 +27,7 @@ interface Transaction {
   description: string;
   date: string;
   is_dollar_app?: boolean; // Específico para el contexto económico (snake_case para DB)
+  user_id?: string;
 }
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
@@ -42,6 +44,122 @@ const formatCurrency = (value: number) => {
 };
 
 // --- COMPONENTES UI (Modularizados) ---
+
+const AuthForm = () => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [message, setMessage] = useState<{text: string, type: 'error' | 'success'} | null>(null);
+
+  const handleAuth = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setMessage(null);
+
+    try {
+      if (isSignUp) {
+        const { error } = await supabase.auth.signUp({ email, password });
+        if (error) throw error;
+        setMessage({ text: '¡Registro exitoso! Revisa tu correo para confirmar.', type: 'success' });
+      } else {
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+      }
+    } catch (error: any) {
+      setMessage({ text: error.message, type: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSocialLogin = async (provider: 'google' | 'azure') => {
+    const { error } = await supabase.auth.signInWithOAuth({ provider });
+    if (error) setMessage({ text: error.message, type: 'error' });
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900 p-4">
+      <div className="bg-white dark:bg-slate-800 p-8 rounded-2xl shadow-lg max-w-md w-full border border-slate-100 dark:border-slate-700">
+        <div className="text-center mb-8">
+          <div className="bg-blue-600 w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-4">
+            <Wallet className="text-white" size={24} />
+          </div>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Finanzas Personales</h1>
+          <p className="text-slate-500 dark:text-slate-400 mt-2">Gestiona tus ingresos y gastos</p>
+        </div>
+
+        {message && (
+          <div className={`p-3 rounded-lg mb-4 text-sm ${message.type === 'error' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+            {message.text}
+          </div>
+        )}
+
+        <form onSubmit={handleAuth} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Correo Electrónico</label>
+            <div className="relative">
+              <Mail className="absolute left-3 top-3 text-slate-400" size={18} />
+              <input 
+                type="email" 
+                required
+                className="w-full pl-10 p-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-transparent dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                placeholder="nombre@ejemplo.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Contraseña</label>
+            <div className="relative">
+              <Lock className="absolute left-3 top-3 text-slate-400" size={18} />
+              <input 
+                type="password" 
+                required
+                className="w-full pl-10 p-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-transparent dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <button 
+            type="submit" 
+            disabled={loading}
+            className="w-full bg-blue-600 text-white py-2.5 rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50"
+          >
+            {loading ? 'Procesando...' : (isSignUp ? 'Registrarse' : 'Iniciar Sesión')}
+          </button>
+        </form>
+
+        <div className="mt-6">
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-200 dark:border-slate-700"></div></div>
+            <div className="relative flex justify-center text-sm"><span className="px-2 bg-white dark:bg-slate-800 text-slate-500">O continuar con</span></div>
+          </div>
+
+          <div className="mt-6 grid grid-cols-2 gap-3">
+            <button onClick={() => handleSocialLogin('google')} className="flex items-center justify-center px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+              <span className="font-medium text-slate-700 dark:text-slate-200">Google</span>
+            </button>
+            <button onClick={() => handleSocialLogin('azure')} className="flex items-center justify-center px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+              <span className="font-medium text-slate-700 dark:text-slate-200">Microsoft</span>
+            </button>
+          </div>
+        </div>
+
+        <p className="text-center mt-8 text-sm text-slate-500">
+          {isSignUp ? "¿Ya tienes cuenta?" : "¿No tienes cuenta?"}
+          <button onClick={() => setIsSignUp(!isSignUp)} className="ml-1 text-blue-600 font-medium hover:underline">
+            {isSignUp ? "Inicia Sesión" : "Regístrate"}
+          </button>
+        </p>
+      </div>
+    </div>
+  );
+};
 
 const Card = ({ title, amount, icon: Icon, colorClass, subtext }: any) => (
   <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 transition-all hover:shadow-md">
@@ -274,16 +392,32 @@ const TransactionList = ({ transactions, onDelete }: { transactions: Transaction
 // --- PÁGINA PRINCIPAL ---
 
 export default function FinancialDashboard() {
+  const [session, setSession] = useState<Session | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentMonth, setCurrentMonth] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
   const [templateData, setTemplateData] = useState<Partial<Transaction> | null>(null);
 
-  // Cargar datos desde Supabase
+  // Gestión de Sesión
   useEffect(() => {
-    fetchTransactions();
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
+
+  // Cargar datos (Solo si hay sesión)
+  useEffect(() => {
+    if (session) fetchTransactions();
+  }, [session]);
 
   const fetchTransactions = async () => {
     setLoading(true);
@@ -305,6 +439,8 @@ export default function FinancialDashboard() {
   };
 
   const addTransaction = async (t: Omit<Transaction, 'id'>) => {
+    if (!session) return;
+
     // Optimistic UI update (opcional, aquí hacemos la llamada directa)
     const { data, error } = await supabase
       .from('transactions')
@@ -331,6 +467,11 @@ export default function FinancialDashboard() {
     } else {
       setTransactions(prev => prev.filter(t => t.id !== id));
     }
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setTransactions([]);
   };
 
   // Filtrar transacciones por mes seleccionado
@@ -389,6 +530,10 @@ export default function FinancialDashboard() {
     return Array.from(unique.values()).slice(0, 6);
   }, [transactions]);
 
+  if (!session) {
+    return <AuthForm />;
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 font-sans pb-20">
       {/* Header */}
@@ -400,18 +545,20 @@ export default function FinancialDashboard() {
             </div>
             <h1 className="text-xl font-bold tracking-tight">Finanzas Personales</h1>
           </div>
-          <div className="text-sm text-slate-500">COP / USD</div>
+          <div className="flex items-center gap-4">
+            <div className="text-sm text-slate-500 hidden sm:block">{session.user.email}</div>
+            <button 
+              onClick={handleLogout}
+              className="p-2 text-slate-500 hover:text-red-600 transition-colors"
+              title="Cerrar Sesión"
+            >
+              <LogOut size={20} />
+            </button>
+          </div>
         </div>
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-        
-        {/* DEBUG: Estado de Variables de Entorno */}
-        <div className={`text-center text-xs p-2 rounded border ${supabaseUrlUsed.includes('tu-proyecto') ? 'bg-yellow-100 border-yellow-200 text-yellow-800' : 'bg-green-100 border-green-200 text-green-800'}`}>
-            <strong>Diagnóstico Vercel:</strong> {supabaseUrlUsed.includes('tu-proyecto') 
-                ? '⚠️ FALTAN VARIABLES DE ENTORNO (Usando URL dummy)' 
-                : '✅ VARIABLES DETECTADAS (Usando Supabase Real)'}
-        </div>
 
         {error && (
           <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
