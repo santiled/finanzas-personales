@@ -5,7 +5,7 @@ import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer 
 } from 'recharts';
 import { 
-  Wallet, TrendingUp, TrendingDown, PiggyBank, Trash2, PlusCircle, DollarSign, Moon, Sun, History, Calendar, LogOut, Lock, Mail, User, Download
+  Wallet, TrendingUp, TrendingDown, PiggyBank, Trash2, PlusCircle, DollarSign, Moon, Sun, History, Calendar, LogOut, Lock, Mail, User, Download, Star, X, Menu, CreditCard, LayoutDashboard, ChevronLeft, ChevronRight, Bell
 } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import { Session } from '@supabase/supabase-js';
@@ -30,6 +30,18 @@ interface Transaction {
   date: string;
   is_dollar_app?: boolean; // Específico para el contexto económico (snake_case para DB)
   user_id?: string;
+}
+
+interface Credit {
+  id: string;
+  description: string;
+  bank: string;
+  monthly_amount: number;
+  total_months: number;
+  start_date: string;
+  cutoff_day: number;
+  payment_day: number;
+  user_id: string;
 }
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
@@ -244,7 +256,7 @@ const Card = ({ title, amount, icon: Icon, colorClass, subtext }: any) => (
   </div>
 );
 
-const TransactionForm = ({ onAdd, initialData }: { onAdd: (t: Omit<Transaction, 'id'>) => void, initialData: Partial<Transaction> | null }) => {
+const TransactionForm = ({ onAdd, onSaveTemplate, initialData }: { onAdd: (t: Omit<Transaction, 'id'>) => void, onSaveTemplate: (t: Omit<Transaction, 'id'>) => void, initialData: Partial<Transaction> | null }) => {
   const [formData, setFormData] = useState({
     amount: '',
     type: 'gasto' as TransactionType,
@@ -253,6 +265,7 @@ const TransactionForm = ({ onAdd, initialData }: { onAdd: (t: Omit<Transaction, 
     date: new Date().toISOString().split('T')[0],
     is_dollar_app: false
   });
+  const [saveAsTemplate, setSaveAsTemplate] = useState(false);
 
   // Efecto para cargar datos desde el historial/plantilla
   useEffect(() => {
@@ -263,6 +276,7 @@ const TransactionForm = ({ onAdd, initialData }: { onAdd: (t: Omit<Transaction, 
         type: initialData.type || 'gasto',
         category: initialData.category || 'Fijos',
         description: initialData.description || '',
+        date: new Date().toISOString().split('T')[0],
         is_dollar_app: initialData.is_dollar_app || false
       }));
     }
@@ -272,14 +286,25 @@ const TransactionForm = ({ onAdd, initialData }: { onAdd: (t: Omit<Transaction, 
     e.preventDefault();
     if (!formData.amount || !formData.description) return;
 
-    onAdd({
+    if (Number(formData.amount) <= 0) {
+      alert("El monto debe ser mayor a 0");
+      return;
+    }
+
+    const newTransaction = {
       amount: Number(formData.amount),
       type: formData.type,
       category: formData.category,
       description: formData.description,
       date: formData.date,
       is_dollar_app: formData.type === 'ahorro' ? formData.is_dollar_app : false
-    });
+    };
+
+    onAdd(newTransaction);
+
+    if (saveAsTemplate) {
+      onSaveTemplate(newTransaction);
+    }
 
     setFormData({ ...formData, amount: '', description: '', is_dollar_app: false });
   };
@@ -370,6 +395,19 @@ const TransactionForm = ({ onAdd, initialData }: { onAdd: (t: Omit<Transaction, 
           />
         </div>
 
+        <div className="md:col-span-2 flex items-center gap-2">
+          <input 
+            type="checkbox" 
+            id="saveTemplate"
+            checked={saveAsTemplate}
+            onChange={(e) => setSaveAsTemplate(e.target.checked)}
+            className="w-4 h-4 text-yellow-500 rounded border-slate-300 focus:ring-yellow-500"
+          />
+          <label htmlFor="saveTemplate" className="text-sm text-slate-600 dark:text-slate-400 cursor-pointer flex items-center gap-1">
+            <Star size={14} className={saveAsTemplate ? "fill-yellow-500 text-yellow-500" : ""} /> Guardar como frecuente
+          </label>
+        </div>
+
         {formData.type === 'ahorro' && (
           <div className="md:col-span-2 flex items-center gap-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-100 dark:border-blue-800">
             <input 
@@ -393,6 +431,244 @@ const TransactionForm = ({ onAdd, initialData }: { onAdd: (t: Omit<Transaction, 
         Registrar Transacción
       </button>
     </form>
+  );
+};
+
+const CreditForm = ({ onAdd }: { onAdd: (c: Omit<Credit, 'id' | 'user_id'>) => void }) => {
+  const [formData, setFormData] = useState({
+    description: '',
+    bank: '',
+    monthly_amount: '',
+    total_months: '',
+    start_date: new Date().toISOString().split('T')[0],
+    cutoff_day: '',
+    payment_day: ''
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.description || !formData.monthly_amount) return;
+
+    onAdd({
+      description: formData.description,
+      bank: formData.bank,
+      monthly_amount: Number(formData.monthly_amount),
+      total_months: Number(formData.total_months),
+      start_date: formData.start_date,
+      cutoff_day: Number(formData.cutoff_day),
+      payment_day: Number(formData.payment_day)
+    });
+
+    setFormData({
+      description: '', bank: '', monthly_amount: '', total_months: '', 
+      start_date: new Date().toISOString().split('T')[0], cutoff_day: '', payment_day: ''
+    });
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 mb-8">
+      <h3 className="text-lg font-semibold mb-4 text-slate-800 dark:text-white flex items-center gap-2">
+        <PlusCircle size={20} /> Nuevo Crédito
+      </h3>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <input type="text" placeholder="Descripción (ej: iPhone)" className="p-2 rounded border border-slate-300 dark:border-slate-600 bg-transparent dark:text-white" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} required />
+        <input type="text" placeholder="Banco" className="p-2 rounded border border-slate-300 dark:border-slate-600 bg-transparent dark:text-white" value={formData.bank} onChange={e => setFormData({...formData, bank: e.target.value})} required />
+        <input type="number" placeholder="Cuota Mensual" className="p-2 rounded border border-slate-300 dark:border-slate-600 bg-transparent dark:text-white" value={formData.monthly_amount} onChange={e => setFormData({...formData, monthly_amount: e.target.value})} required />
+        <input type="number" placeholder="Plazo (Meses)" className="p-2 rounded border border-slate-300 dark:border-slate-600 bg-transparent dark:text-white" value={formData.total_months} onChange={e => setFormData({...formData, total_months: e.target.value})} required />
+        <input type="date" placeholder="Fecha Inicio" className="p-2 rounded border border-slate-300 dark:border-slate-600 bg-transparent dark:text-white" value={formData.start_date} onChange={e => setFormData({...formData, start_date: e.target.value})} required />
+        <input type="number" placeholder="Día de Corte (1-31)" min="1" max="31" className="p-2 rounded border border-slate-300 dark:border-slate-600 bg-transparent dark:text-white" value={formData.cutoff_day} onChange={e => setFormData({...formData, cutoff_day: e.target.value})} required />
+        <input type="number" placeholder="Día de Pago (1-31)" min="1" max="31" className="p-2 rounded border border-slate-300 dark:border-slate-600 bg-transparent dark:text-white" value={formData.payment_day} onChange={e => setFormData({...formData, payment_day: e.target.value})} required />
+        <button type="submit" className="bg-blue-600 text-white p-2 rounded hover:bg-blue-700 transition-colors">Agregar Crédito</button>
+      </div>
+    </form>
+  );
+};
+
+const CreditsView = ({ session, currentMonth }: { session: Session, currentMonth: string }) => {
+  const [credits, setCredits] = useState<Credit[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  
+  useEffect(() => {
+    const fetchData = async () => {
+      // Cargar Créditos
+      const { data: creditsData } = await supabase.from('credits').select('*');
+      if (creditsData) setCredits(creditsData);
+
+      // Cargar Transacciones del mes para el calendario
+      const { data: transactionsData } = await supabase
+        .from('transactions')
+        .select('*')
+        .like('date', `${currentMonth}%`);
+      if (transactionsData) setTransactions(transactionsData);
+    };
+    fetchData();
+  }, [currentMonth]);
+
+  const addCredit = async (c: Omit<Credit, 'id' | 'user_id'>) => {
+    const { data, error } = await supabase.from('credits').insert([c]).select();
+    if (data) setCredits(prev => [...prev, data[0]]);
+    if (error) alert(error.message);
+  };
+
+  const deleteCredit = async (id: string) => {
+    if (!confirm('¿Eliminar crédito?')) return;
+    await supabase.from('credits').delete().eq('id', id);
+    setCredits(prev => prev.filter(c => c.id !== id));
+  };
+
+  const testReminders = async () => {
+    if (!confirm("Esto simulará el proceso diario y enviará correos si hay pagos en 3 días. ¿Continuar?")) return;
+    try {
+      const res = await fetch('/api/cron/reminders');
+      const data = await res.json();
+      alert(`Resultado: ${JSON.stringify(data, null, 2)}`);
+    } catch (e) {
+      alert("Error al ejecutar recordatorios");
+    }
+  };
+
+  // Filtrar créditos activos en el mes seleccionado
+  const activeCredits = useMemo(() => {
+    return credits.filter(c => {
+      const start = new Date(c.start_date);
+      const end = new Date(start);
+      end.setMonth(start.getMonth() + c.total_months);
+      const current = new Date(currentMonth + '-01');
+      // Ajuste para comparar mes/año ignorando día
+      const currentEnd = new Date(current.getFullYear(), current.getMonth() + 1, 0);
+      return start <= currentEnd && end >= current;
+    });
+  }, [credits, currentMonth]);
+
+  const totalToPay = activeCredits.reduce((acc, c) => acc + c.monthly_amount, 0);
+
+  // Generar Calendario
+  const calendarDays = useMemo(() => {
+    const [year, month] = currentMonth.split('-').map(Number);
+    const daysInMonth = new Date(year, month, 0).getDate();
+    const days = [];
+    for (let i = 1; i <= daysInMonth; i++) {
+      // Eventos de Créditos
+      const creditEvents = activeCredits
+        .filter(c => c.payment_day === i || c.cutoff_day === i)
+        .map(c => ({
+          type: c.payment_day === i ? 'credit_payment' : 'credit_cutoff',
+          name: c.description,
+          amount: c.monthly_amount,
+          id: c.id
+        }));
+
+      // Eventos de Transacciones
+      const transactionEvents = transactions
+        .filter(t => parseInt(t.date.split('-')[2]) === i)
+        .map(t => ({
+          type: t.type, // 'ingreso', 'gasto', 'ahorro'
+          name: t.description,
+          amount: t.amount,
+          id: t.id
+        }));
+
+      days.push({ day: i, events: [...creditEvents, ...transactionEvents] });
+    }
+    return days;
+  }, [currentMonth, activeCredits, transactions]);
+
+  const getEventColor = (type: string) => {
+    switch (type) {
+      case 'credit_payment': return 'bg-red-600';
+      case 'credit_cutoff': return 'bg-yellow-400';
+      case 'gasto': return 'bg-red-400';
+      case 'ingreso': return 'bg-green-500';
+      case 'ahorro': return 'bg-blue-500';
+      default: return 'bg-slate-400';
+    }
+  };
+
+  return (
+    <div className="space-y-8">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="md:col-span-2">
+          <CreditForm onAdd={addCredit} />
+          
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
+            <div className="p-6 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center">
+              <h3 className="text-lg font-semibold text-slate-800 dark:text-white">Créditos Activos ({currentMonth})</h3>
+              <div className="flex items-center gap-4">
+                <button onClick={testReminders} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-full transition-colors" title="Probar recordatorios (Simulación)">
+                  <Bell size={18} />
+                </button>
+                <span className="text-xl font-bold text-red-600">Total: {formatCurrency(totalToPay)}</span>
+              </div>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-slate-50 dark:bg-slate-900/50 text-slate-500 dark:text-slate-400">
+                  <tr>
+                    <th className="p-4">Descripción</th>
+                    <th className="p-4">Banco</th>
+                    <th className="p-4">Cuota</th>
+                    <th className="p-4">Corte / Pago</th>
+                    <th className="p-4 text-center">Acción</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                  {activeCredits.map(c => (
+                    <tr key={c.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                      <td className="p-4 font-medium dark:text-white">{c.description}</td>
+                      <td className="p-4 dark:text-slate-300">{c.bank}</td>
+                      <td className="p-4 font-bold text-slate-900 dark:text-white">{formatCurrency(c.monthly_amount)}</td>
+                      <td className="p-4 text-xs text-slate-500">
+                        <div className="flex gap-2">
+                          <span className="bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded">Corte: {c.cutoff_day}</span>
+                          <span className="bg-red-100 text-red-800 px-2 py-0.5 rounded">Pago: {c.payment_day}</span>
+                        </div>
+                      </td>
+                      <td className="p-4 text-center">
+                        <button onClick={() => deleteCredit(c.id)} className="text-slate-400 hover:text-red-500"><Trash2 size={18} /></button>
+                      </td>
+                    </tr>
+                  ))}
+                  {activeCredits.length === 0 && <tr><td colSpan={5} className="p-6 text-center text-slate-400">No hay créditos activos este mes.</td></tr>}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        {/* Calendario */}
+        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700">
+          <h3 className="text-lg font-semibold mb-4 text-slate-800 dark:text-white flex items-center gap-2">
+            <Calendar size={20} /> Calendario de Pagos
+          </h3>
+          <div className="grid grid-cols-7 gap-2 text-center text-xs mb-2 text-slate-400 font-medium">
+            {['D','L','M','M','J','V','S'].map((d,i) => <div key={i}>{d}</div>)}
+          </div>
+          <div className="grid grid-cols-7 gap-2">
+            {calendarDays.map((d) => (
+              <div key={d.day} className={`aspect-square rounded-lg border ${d.events.length > 0 ? 'border-blue-200 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-800' : 'border-slate-100 dark:border-slate-700'} p-1 flex flex-col items-center justify-start relative overflow-hidden`}>
+                <span className={`text-xs font-bold ${d.events.length > 0 ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400'}`}>{d.day}</span>
+                <div className="flex flex-col gap-0.5 w-full mt-1">
+                  {d.events.map((e, i) => (
+                    <div 
+                      key={i} 
+                      className={`h-1.5 w-full rounded-full ${getEventColor(e.type)}`} 
+                      title={`${e.name} - ${formatCurrency(e.amount)} (${e.type})`} 
+                    />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="mt-4 flex flex-wrap gap-3 text-xs justify-center">
+            <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-yellow-400"></div><span>Corte</span></div>
+            <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-red-600"></div><span>Pago Crédito</span></div>
+            <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-green-500"></div><span>Ingreso</span></div>
+            <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-red-400"></div><span>Gasto</span></div>
+            <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-blue-500"></div><span>Ahorro</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 };
 
@@ -457,39 +733,24 @@ const TransactionList = ({ transactions, onDelete }: { transactions: Transaction
   );
 };
 
-// --- PÁGINA PRINCIPAL ---
-
-export default function FinancialDashboard() {
-  const [session, setSession] = useState<Session | null>(null);
+const DashboardView = ({ session, currentMonth }: { session: Session, currentMonth: string }) => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [templates, setTemplates] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [currentMonth, setCurrentMonth] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
   const [templateData, setTemplateData] = useState<Partial<Transaction> | null>(null);
-
-  // Obtener datos del usuario para el saludo
-  const userMetaData = session?.user?.user_metadata;
-  const greeting = userMetaData?.gender === 'Femenino' ? 'Bienvenida' : 'Bienvenido';
-  const displayName = userMetaData?.full_name?.split(' ')[0] || session?.user?.email?.split('@')[0] || 'Usuario';
-
-  // Gestión de Sesión
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-    });
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
 
   // Cargar datos (Solo si hay sesión)
   useEffect(() => {
-    if (session) fetchTransactions();
+    fetchTransactions();
+  }, [session]); // Recargar si cambia la sesión (aunque DashboardView se desmonta si no hay sesión)
+
+  // Cargar plantillas desde localStorage
+  useEffect(() => {
+    if (session?.user?.id) {
+      const saved = localStorage.getItem(`finance_templates_${session.user.id}`);
+      if (saved) setTemplates(JSON.parse(saved));
+    }
   }, [session]);
 
   const fetchTransactions = async () => {
@@ -528,7 +789,28 @@ export default function FinancialDashboard() {
     }
   };
 
+  const handleSaveTemplate = (t: Omit<Transaction, 'id'>) => {
+    if (!session?.user?.id) return;
+    const newTemplate = { ...t, id: crypto.randomUUID() } as Transaction;
+    setTemplates(prev => {
+      const updated = [newTemplate, ...prev].slice(0, 10); // Máximo 10
+      localStorage.setItem(`finance_templates_${session.user.id}`, JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  const handleDeleteTemplate = (id: string) => {
+    if (!session?.user?.id) return;
+    setTemplates(prev => {
+      const updated = prev.filter(t => t.id !== id);
+      localStorage.setItem(`finance_templates_${session.user.id}`, JSON.stringify(updated));
+      return updated;
+    });
+  };
+
   const deleteTransaction = async (id: string) => {
+    if (!window.confirm("¿Estás seguro de que deseas eliminar esta transacción?")) return;
+
     const { error } = await supabase
       .from('transactions')
       .delete()
@@ -582,11 +864,6 @@ export default function FinancialDashboard() {
     doc.save(`reporte-finanzas-${currentMonth}.pdf`);
   };
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    setTransactions([]);
-  };
-
   // Filtrar transacciones por mes seleccionado
   const filteredTransactions = useMemo(() => {
     return transactions.filter(t => t.date.startsWith(currentMonth));
@@ -629,30 +906,168 @@ export default function FinancialDashboard() {
     return { pieData, barData };
   }, [filteredTransactions, metrics]);
 
-  // Historial de Plantillas (Últimas transacciones únicas)
-  const recentTemplates = useMemo(() => {
-    const unique = new Map();
-    transactions.forEach(t => {
-      // Clave única basada en descripción y monto para evitar duplicados exactos
-      const key = `${t.description.trim().toLowerCase()}-${t.amount}-${t.type}`;
-      if (!unique.has(key)) {
-        unique.set(key, t);
-      }
-    });
-    // Retornamos las 6 más recientes (como vienen ordenadas por fecha desc, las primeras son las recientes)
-    return Array.from(unique.values()).slice(0, 6);
-  }, [transactions]);
+  return (
+    <div className="space-y-8">
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
+          <strong className="font-bold">Error detectado: </strong>
+          <span className="block sm:inline">{error}</span>
+        </div>
+      )}
+
+      {loading && <p className="text-center text-slate-500">Cargando datos financieros...</p>}
+
+      {/* Actions Bar: Download */}
+      <div className="flex flex-col sm:flex-row items-center justify-end gap-4">
+        <button
+          onClick={handleDownloadPDF}
+          className="flex items-center gap-2 px-4 py-2 bg-slate-900 dark:bg-slate-700 text-white rounded-lg text-sm font-medium hover:bg-slate-800 transition-colors shadow-sm w-full sm:w-auto justify-center"
+        >
+          <Download size={16} /> Descargar Reporte
+        </button>
+      </div>
+      
+      {/* Dashboard Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card title="Ingresos Totales" amount={metrics.income} icon={TrendingUp} colorClass="bg-green-500" />
+        <Card title="Gastos Totales" amount={metrics.expense} icon={TrendingDown} colorClass="bg-red-500" />
+        <Card title="Ahorros Totales" amount={metrics.savings} icon={PiggyBank} colorClass="bg-blue-500" />
+        <Card title="Balance Neto" amount={metrics.netBalance} icon={DollarSign} colorClass="bg-slate-700" subtext="Ingresos - Gastos" />
+      </div>
+
+      {/* Charts & Form Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Left Column: Charts */}
+        <div className="lg:col-span-2 space-y-8">
+          {/* Bar Chart */}
+          <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700">
+            <h3 className="text-lg font-semibold mb-6">Flujo de Caja</h3>
+            <div className="h-64 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData.barData}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} />
+                  <YAxis axisLine={false} tickLine={false} tickFormatter={(value) => `$${value/1000}k`} />
+                  <Tooltip formatter={(value: any) => formatCurrency(value)} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                  <Bar dataKey="amount" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={50} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {/* Pie Chart */}
+          <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700">
+            <h3 className="text-lg font-semibold mb-6">Distribución de Gastos</h3>
+            <div className="h-64 w-full flex items-center justify-center">
+              {chartData.pieData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={chartData.pieData} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
+                      {chartData.pieData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(value: any) => formatCurrency(value)} />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <p className="text-slate-400 text-sm">No hay gastos registrados para mostrar.</p>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Right Column: Form */}
+        <div className="lg:col-span-1">
+          {/* Quick Add Templates */}
+          {templates.length > 0 && (
+            <div className="mb-6">
+              <h3 className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-3 uppercase tracking-wider flex items-center gap-2">
+                <History size={14} /> Usar registro frecuente
+              </h3>
+              <div className="flex flex-wrap gap-2">
+                {templates.map(t => (
+                  <div key={t.id} className="relative group">
+                    <button onClick={() => setTemplateData(t)} className="px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs hover:border-blue-500 dark:hover:border-blue-500 hover:text-blue-600 dark:hover:text-blue-400 transition-all shadow-sm text-left pr-6" title={`Usar: ${t.description} - ${formatCurrency(t.amount)}`}>
+                      <span className="font-medium block truncate max-w-[120px]">{t.description}</span>
+                      <span className="text-slate-400">{formatCurrency(t.amount)}</span>
+                    </button>
+                    <button onClick={(e) => { e.stopPropagation(); handleDeleteTemplate(t.id); }} className="absolute -top-1.5 -right-1.5 bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-300 rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity shadow-sm hover:bg-red-200">
+                      <X size={10} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          <TransactionForm onAdd={addTransaction} onSaveTemplate={handleSaveTemplate} initialData={templateData} />
+        </div>
+      </div>
+
+      {/* Transaction Table */}
+      <TransactionList transactions={filteredTransactions} onDelete={deleteTransaction} />
+    </div>
+  );
+};
+
+// --- PÁGINA PRINCIPAL (LAYOUT & STATE) ---
+
+export default function FinancialDashboard() {
+  const [session, setSession] = useState<Session | null>(null);
+  const [currentMonth, setCurrentMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [activeView, setActiveView] = useState<'dashboard' | 'credits'>('dashboard');
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  // Gestión de Sesión
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => setSession(session));
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => setSession(session));
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+  };
 
   if (!session) {
     return <AuthForm />;
   }
 
+  // Obtener datos del usuario para el saludo
+  const userMetaData = session?.user?.user_metadata;
+  const greeting = userMetaData?.gender === 'Femenino' ? 'Bienvenida' : 'Bienvenido';
+  const displayName = userMetaData?.full_name?.split(' ')[0] || session?.user?.email?.split('@')[0] || 'Usuario';
+
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 font-sans pb-20">
+      
+      {/* Sidebar (Mobile & Desktop) */}
+      <div className={`fixed inset-y-0 left-0 z-30 w-64 bg-white dark:bg-slate-950 border-r border-slate-200 dark:border-slate-800 transform transition-transform duration-300 ease-in-out ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+        <div className="p-6 flex justify-between items-center border-b border-slate-100 dark:border-slate-800">
+          <h2 className="font-bold text-lg">Menú</h2>
+          <button onClick={() => setIsMenuOpen(false)} className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800"><X size={20} /></button>
+        </div>
+        <nav className="p-4 space-y-2">
+          <button onClick={() => { setActiveView('dashboard'); setIsMenuOpen(false); }} className={`w-full flex items-center gap-3 p-3 rounded-lg transition-colors ${activeView === 'dashboard' ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}>
+            <LayoutDashboard size={20} /> Dashboard
+          </button>
+          <button onClick={() => { setActiveView('credits'); setIsMenuOpen(false); }} className={`w-full flex items-center gap-3 p-3 rounded-lg transition-colors ${activeView === 'credits' ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}>
+            <CreditCard size={20} /> Créditos
+          </button>
+        </nav>
+      </div>
+
+      {/* Overlay for mobile */}
+      {isMenuOpen && <div className="fixed inset-0 bg-black/50 z-20" onClick={() => setIsMenuOpen(false)} />}
+
       {/* Header */}
       <header className="bg-white dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
+            <button onClick={() => setIsMenuOpen(true)} className="p-2 mr-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">
+              <Menu size={24} />
+            </button>
             <div className="bg-blue-600 p-2 rounded-lg">
               <Wallet className="text-white" size={20} />
             </div>
@@ -662,12 +1077,18 @@ export default function FinancialDashboard() {
             </div>
           </div>
           <div className="flex items-center gap-4">
+            {/* Global Month Filter */}
+            <div className="hidden sm:flex items-center gap-2">
+              <Calendar size={16} className="text-slate-400" />
+              <input 
+                type="month" 
+                value={currentMonth}
+                onChange={(e) => setCurrentMonth(e.target.value)}
+                className="p-1.5 rounded border border-slate-300 dark:border-slate-600 bg-transparent text-sm outline-none focus:border-blue-500"
+              />
+            </div>
             <div className="text-sm text-slate-500 hidden sm:block">{session.user.email}</div>
-            <button 
-              onClick={handleLogout}
-              className="p-2 text-slate-500 hover:text-red-600 transition-colors"
-              title="Cerrar Sesión"
-            >
+            <button onClick={handleLogout} className="p-2 text-slate-500 hover:text-red-600 transition-colors" title="Cerrar Sesión">
               <LogOut size={20} />
             </button>
           </div>
@@ -675,151 +1096,11 @@ export default function FinancialDashboard() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-
-        {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
-            <strong className="font-bold">Error detectado: </strong>
-            <span className="block sm:inline">{error}</span>
-          </div>
+        {activeView === 'dashboard' ? (
+          <DashboardView session={session} currentMonth={currentMonth} />
+        ) : (
+          <CreditsView session={session} currentMonth={currentMonth} />
         )}
-
-        {loading && <p className="text-center text-slate-500">Cargando datos financieros...</p>}
-
-        {/* Actions Bar: Filter & Download */}
-        <div className="flex flex-col sm:flex-row items-center justify-end gap-4">
-          <button
-            onClick={handleDownloadPDF}
-            className="flex items-center gap-2 px-4 py-2 bg-slate-900 dark:bg-slate-700 text-white rounded-lg text-sm font-medium hover:bg-slate-800 transition-colors shadow-sm w-full sm:w-auto justify-center"
-          >
-            <Download size={16} /> Descargar Reporte
-          </button>
-
-          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-            <label className="text-sm font-medium text-slate-600 dark:text-slate-400 flex items-center gap-2">
-              <Calendar size={16} /> Filtrar:
-            </label>
-            <input 
-              type="month" 
-              value={currentMonth}
-              onChange={(e) => setCurrentMonth(e.target.value)}
-              className="p-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm focus:ring-2 focus:ring-blue-500 outline-none"
-            />
-          </div>
-        </div>
-        
-        {/* Dashboard Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card 
-            title="Ingresos Totales" 
-            amount={metrics.income} 
-            icon={TrendingUp} 
-            colorClass="bg-green-500" 
-          />
-          <Card 
-            title="Gastos Totales" 
-            amount={metrics.expense} 
-            icon={TrendingDown} 
-            colorClass="bg-red-500" 
-          />
-          <Card 
-            title="Ahorros Totales" 
-            amount={metrics.savings} 
-            icon={PiggyBank} 
-            colorClass="bg-blue-500"
-          />
-          <Card 
-            title="Balance Neto" 
-            amount={metrics.netBalance} 
-            icon={DollarSign} 
-            colorClass="bg-slate-700"
-            subtext="Ingresos - Gastos"
-          />
-        </div>
-
-        {/* Charts & Form Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          
-          {/* Left Column: Charts */}
-          <div className="lg:col-span-2 space-y-8">
-            {/* Bar Chart */}
-            <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700">
-              <h3 className="text-lg font-semibold mb-6">Flujo de Caja</h3>
-              <div className="h-64 w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={chartData.barData}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                    <XAxis dataKey="name" axisLine={false} tickLine={false} />
-                    <YAxis axisLine={false} tickLine={false} tickFormatter={(value) => `$${value/1000}k`} />
-                    <Tooltip 
-                      formatter={(value: any) => formatCurrency(value)}
-                      contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                    />
-                    <Bar dataKey="amount" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={50} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-
-            {/* Pie Chart */}
-            <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700">
-              <h3 className="text-lg font-semibold mb-6">Distribución de Gastos</h3>
-              <div className="h-64 w-full flex items-center justify-center">
-                {chartData.pieData.length > 0 ? (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={chartData.pieData}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={60}
-                        outerRadius={80}
-                        paddingAngle={5}
-                        dataKey="value"
-                      >
-                        {chartData.pieData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip formatter={(value: any) => formatCurrency(value)} />
-                      <Legend />
-                    </PieChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <p className="text-slate-400 text-sm">No hay gastos registrados para mostrar.</p>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Right Column: Form */}
-          <div className="lg:col-span-1">
-            {/* Quick Add Templates */}
-            {recentTemplates.length > 0 && (
-              <div className="mb-6">
-                <h3 className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-3 uppercase tracking-wider flex items-center gap-2">
-                  <History size={14} /> Usar registro frecuente
-                </h3>
-                <div className="flex flex-wrap gap-2">
-                  {recentTemplates.map(t => (
-                    <button
-                      key={t.id}
-                      onClick={() => setTemplateData(t)}
-                      className="px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs hover:border-blue-500 dark:hover:border-blue-500 hover:text-blue-600 dark:hover:text-blue-400 transition-all shadow-sm text-left"
-                      title={`Usar: ${t.description} - ${formatCurrency(t.amount)}`}
-                    >
-                      <span className="font-medium block truncate max-w-[120px]">{t.description}</span>
-                      <span className="text-slate-400">{formatCurrency(t.amount)}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-            <TransactionForm onAdd={addTransaction} initialData={templateData} />
-          </div>
-        </div>
-
-        {/* Transaction Table */}
-        <TransactionList transactions={filteredTransactions} onDelete={deleteTransaction} />
       </main>
     </div>
   );
