@@ -8,7 +8,6 @@ import {
   Wallet, TrendingUp, TrendingDown, PiggyBank, Trash2, PlusCircle, DollarSign, Moon, Sun, History, Calendar
 } from 'lucide-react';
 import { supabase } from '../supabaseClient';
-// Forzar reconstrucción en Vercel para leer variables de entorno
 
 // --- TIPOS Y CONSTANTES ---
 
@@ -277,6 +276,7 @@ const TransactionList = ({ transactions, onDelete }: { transactions: Transaction
 export default function FinancialDashboard() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [currentMonth, setCurrentMonth] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
   const [templateData, setTemplateData] = useState<Partial<Transaction> | null>(null);
 
@@ -287,13 +287,18 @@ export default function FinancialDashboard() {
 
   const fetchTransactions = async () => {
     setLoading(true);
+    setError(null);
     const { data, error } = await supabase
       .from('transactions')
       .select('*')
       .order('date', { ascending: false });
     
-    if (error) console.error('Error cargando transacciones:', error);
-    else if (data) setTransactions(data);
+    if (error) {
+      console.error('Error cargando transacciones:', error);
+      setError(error.message || "Error de conexión con Supabase. Revisa las variables de entorno.");
+    } else if (data) {
+      setTransactions(data);
+    }
     
     setLoading(false);
   };
@@ -400,6 +405,12 @@ export default function FinancialDashboard() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
         {loading && <p className="text-center text-slate-500">Cargando datos financieros...</p>}
+        {error && (
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
+            <strong className="font-bold">Error detectado: </strong>
+            <span className="block sm:inline">{error}</span>
+          </div>
+        )}
 
         {/* Month Filter */}
         <div className="flex items-center justify-end gap-4">
